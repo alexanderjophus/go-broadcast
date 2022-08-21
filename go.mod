@@ -1,3 +1,3 @@
-module github.com/dustin/go-broadcast
+module github.com/trelore/go-broadcast
 
-go 1.16
+go 1.18

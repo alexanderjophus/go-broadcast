@@ -1,8 +1,8 @@
 package broadcast
 
-type taggedObservation struct {
-	sub *subObserver
-	ob  interface{}
+type taggedObservation[T any] struct {
+	sub *subObserver[T]
+	ob  T
 }
 
 const (
@@ -11,18 +11,18 @@ const (
 	purge
 )
 
-type taggedRegReq struct {
-	sub     *subObserver
-	ch      chan<- interface{}
+type taggedRegReq[T any] struct {
+	sub     *subObserver[T]
+	ch      chan<- T
 	regType int
 }
 
 // A MuxObserver multiplexes several streams of observations onto a
 // single delivery goroutine.
-type MuxObserver struct {
-	subs  map[*subObserver]map[chan<- interface{}]bool
-	reg   chan taggedRegReq
-	input chan taggedObservation
+type MuxObserver[T any] struct {
+	subs  map[*subObserver[T]]map[chan<- T]bool
+	reg   chan taggedRegReq[T]
+	input chan taggedObservation[T]
 }
 
 // NewMuxObserver constructs  a new MuxObserver.
@@ -30,38 +30,38 @@ type MuxObserver struct {
 // qlen is the size of the channel buffer for observations sent into
 // the mux observer and reglen is the size of the channel buffer for
 // registration/unregistration events.
-func NewMuxObserver(qlen, reglen int) *MuxObserver {
-	rv := &MuxObserver{
-		subs:  map[*subObserver]map[chan<- interface{}]bool{},
-		reg:   make(chan taggedRegReq, reglen),
-		input: make(chan taggedObservation, qlen),
+func NewMuxObserver[T any](qlen, reglen int) *MuxObserver[T] {
+	rv := &MuxObserver[T]{
+		subs:  map[*subObserver[T]]map[chan<- T]bool{},
+		reg:   make(chan taggedRegReq[T], reglen),
+		input: make(chan taggedObservation[T], qlen),
 	}
 	go rv.run()
 	return rv
 }
 
 // Close shuts down this mux observer.
-func (m *MuxObserver) Close() error {
+func (m *MuxObserver[T]) Close() error {
 	close(m.reg)
 	return nil
 }
 
-func (m *MuxObserver) broadcast(to taggedObservation) {
+func (m *MuxObserver[T]) broadcast(to taggedObservation[T]) {
 	for ch := range m.subs[to.sub] {
 		ch <- to.ob
 	}
 }
 
-func (m *MuxObserver) doReg(tr taggedRegReq) {
+func (m *MuxObserver[T]) doReg(tr taggedRegReq[T]) {
 	mm, exists := m.subs[tr.sub]
 	if !exists {
-		mm = map[chan<- interface{}]bool{}
+		mm = map[chan<- T]bool{}
 		m.subs[tr.sub] = mm
 	}
 	mm[tr.ch] = true
 }
 
-func (m *MuxObserver) doUnreg(tr taggedRegReq) {
+func (m *MuxObserver[T]) doUnreg(tr taggedRegReq[T]) {
 	mm, exists := m.subs[tr.sub]
 	if exists {
 		delete(mm, tr.ch)
@@ -71,7 +71,7 @@ func (m *MuxObserver) doUnreg(tr taggedRegReq) {
 	}
 }
 
-func (m *MuxObserver) handleReg(tr taggedRegReq) {
+func (m *MuxObserver[T]) handleReg(tr taggedRegReq[T]) {
 	switch tr.regType {
 	case register:
 		m.doReg(tr)
@@ -82,7 +82,7 @@ func (m *MuxObserver) handleReg(tr taggedRegReq) {
 	}
 }
 
-func (m *MuxObserver) run() {
+func (m *MuxObserver[T]) run() {
 	for {
 		select {
 		case tr, ok := <-m.reg:
@@ -107,37 +107,37 @@ func (m *MuxObserver) run() {
 }
 
 // Sub creates a new sub-broadcaster from this MuxObserver.
-func (m *MuxObserver) Sub() Broadcaster {
-	return &subObserver{m}
+func (m *MuxObserver[T]) Sub() Broadcaster[T] {
+	return &subObserver[T]{m}
 }
 
-type subObserver struct {
-	mo *MuxObserver
+type subObserver[T any] struct {
+	mo *MuxObserver[T]
 }
 
-func (s *subObserver) Register(ch chan<- interface{}) {
-	s.mo.reg <- taggedRegReq{s, ch, register}
+func (s *subObserver[T]) Register(ch chan<- T) {
+	s.mo.reg <- taggedRegReq[T]{s, ch, register}
 }
 
-func (s *subObserver) Unregister(ch chan<- interface{}) {
-	s.mo.reg <- taggedRegReq{s, ch, unregister}
+func (s *subObserver[T]) Unregister(ch chan<- T) {
+	s.mo.reg <- taggedRegReq[T]{s, ch, unregister}
 }
 
-func (s *subObserver) Close() error {
-	s.mo.reg <- taggedRegReq{s, nil, purge}
+func (s *subObserver[T]) Close() error {
+	s.mo.reg <- taggedRegReq[T]{s, nil, purge}
 	return nil
 }
 
-func (s *subObserver) Submit(ob interface{}) {
-	s.mo.input <- taggedObservation{s, ob}
+func (s *subObserver[T]) Submit(ob T) {
+	s.mo.input <- taggedObservation[T]{s, ob}
 }
 
-func (s *subObserver) TrySubmit(ob interface{}) bool {
+func (s *subObserver[T]) TrySubmit(ob T) bool {
 	if s == nil {
 		return false
 	}
 	select {
-	case s.mo.input <- taggedObservation{s, ob}:
+	case s.mo.input <- taggedObservation[T]{s, ob}:
 		return true
 	default:
 		return false

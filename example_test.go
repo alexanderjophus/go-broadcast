@@ -6,7 +6,7 @@ import "log"
 //
 // Five messages are sent.  The first worker prints all five.  The second worker prints the first and then unsubscribes.
 func Example() {
-	b := NewBroadcaster(100)
+	b := NewBroadcaster[int](100)
 
 	workerOne(b)
 	workerTwo(b)
@@ -18,8 +18,8 @@ func Example() {
 	b.Close()
 }
 
-func workerOne(b Broadcaster) {
-	ch := make(chan interface{})
+func workerOne(b Broadcaster[int]) {
+	ch := make(chan int)
 	b.Register(ch)
 	defer b.Unregister(ch)
 
@@ -31,8 +31,8 @@ func workerOne(b Broadcaster) {
 	}()
 }
 
-func workerTwo(b Broadcaster) {
-	ch := make(chan interface{})
+func workerTwo(b Broadcaster[int]) {
+	ch := make(chan int)
 	b.Register(ch)
 	defer b.Unregister(ch)
 	defer log.Printf("workerTwo is done\n")

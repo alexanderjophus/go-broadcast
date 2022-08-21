@@ -8,13 +8,13 @@ import (
 func TestBroadcast(t *testing.T) {
 	wg := sync.WaitGroup{}
 
-	b := NewBroadcaster(100)
+	b := NewBroadcaster[int](100)
 	defer b.Close()
 
 	for i := 0; i < 5; i++ {
 		wg.Add(1)
 
-		cch := make(chan interface{})
+		cch := make(chan int)
 
 		b.Register(cch)
 
@@ -32,7 +32,7 @@ func TestBroadcast(t *testing.T) {
 }
 
 func TestBroadcastTrySubmit(t *testing.T) {
-	b := NewBroadcaster(1)
+	b := NewBroadcaster[int](1)
 	defer b.Close()
 
 	if ok := b.TrySubmit(0); !ok {
@@ -43,7 +43,7 @@ func TestBroadcastTrySubmit(t *testing.T) {
 		t.Fatalf("2nd TrySubmit assert error expect=false actual=%v", ok)
 	}
 
-	cch := make(chan interface{})
+	cch := make(chan int)
 	b.Register(cch)
 
 	if ok := b.TrySubmit(1); !ok {
@@ -52,68 +52,68 @@ func TestBroadcastTrySubmit(t *testing.T) {
 }
 
 func TestBroadcastCleanup(t *testing.T) {
-	b := NewBroadcaster(100)
-	b.Register(make(chan interface{}))
+	b := NewBroadcaster[int](100)
+	b.Register(make(chan int))
 	b.Close()
 }
 
-func echoer(chin, chout chan interface{}) {
+func echoer(chin, chout chan struct{}) {
 	for m := range chin {
 		chout <- m
 	}
 }
 
 func BenchmarkDirectSend(b *testing.B) {
-	chout := make(chan interface{})
-	chin := make(chan interface{})
+	chout := make(chan struct{})
+	chin := make(chan struct{})
 	defer close(chin)
 
 	go echoer(chin, chout)
 
 	for i := 0; i < b.N; i++ {
-		chin <- nil
+		chin <- struct{}{}
 		<-chout
 	}
 }
 
 func BenchmarkBrodcast(b *testing.B) {
-	chout := make(chan interface{})
+	chout := make(chan struct{})
 
-	bc := NewBroadcaster(0)
+	bc := NewBroadcaster[struct{}](0)
 	defer bc.Close()
 	bc.Register(chout)
 
 	for i := 0; i < b.N; i++ {
-		bc.Submit(nil)
+		bc.Submit(struct{}{})
 		<-chout
 	}
 }
 
 func BenchmarkParallelDirectSend(b *testing.B) {
-	chout := make(chan interface{})
-	chin := make(chan interface{})
+	chout := make(chan struct{})
+	chin := make(chan struct{})
 	defer close(chin)
 
 	go echoer(chin, chout)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			chin <- nil
+			chin <- struct{}{}
 			<-chout
 		}
 	})
 }
 
 func BenchmarkParallelBrodcast(b *testing.B) {
-	chout := make(chan interface{})
+	chout := make(chan struct{})
 
-	bc := NewBroadcaster(0)
+	bc := NewBroadcaster[struct{}](0)
 	defer bc.Close()
 	bc.Register(chout)
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			bc.Submit(nil)
+			bc.Submit(struct{}{})
 			<-chout
 		}
 	})

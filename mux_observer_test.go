@@ -8,7 +8,7 @@ import (
 func TestMuxBroadcast(t *testing.T) {
 	wg := sync.WaitGroup{}
 
-	mo := NewMuxObserver(0, 0)
+	mo := NewMuxObserver[int](0, 0)
 	defer mo.Close()
 
 	b1 := mo.Sub()
@@ -20,9 +20,9 @@ func TestMuxBroadcast(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		wg.Add(2)
 
-		cch1 := make(chan interface{})
+		cch1 := make(chan int)
 		b1.Register(cch1)
-		cch2 := make(chan interface{})
+		cch2 := make(chan int)
 		b2.Register(cch2)
 
 		go func() {
@@ -45,23 +45,23 @@ func TestMuxBroadcast(t *testing.T) {
 }
 
 func TestMuxBroadcastCleanup(t *testing.T) {
-	mo := NewMuxObserver(0, 0)
+	mo := NewMuxObserver[int](0, 0)
 	b := mo.Sub()
-	b.Register(make(chan interface{}))
+	b.Register(make(chan int))
 	b.Close()
 	mo.Close()
 }
 
 func BenchmarkMuxBrodcast(b *testing.B) {
-	chout := make(chan interface{})
+	chout := make(chan struct{})
 
-	mo := NewMuxObserver(0, 0)
+	mo := NewMuxObserver[struct{}](0, 0)
 	defer mo.Close()
 	bc := mo.Sub()
 	bc.Register(chout)
 
 	for i := 0; i < b.N; i++ {
-		bc.Submit(nil)
+		bc.Submit(struct{}{})
 		<-chout
 	}
 }
