@@ -104,7 +104,7 @@ func BenchmarkParallelDirectSend(b *testing.B) {
 	})
 }
 
-func BenchmarkParallelBrodcast(b *testing.B) {
+func BenchmarkParallelBroadcast(b *testing.B) {
 	chout := make(chan struct{})
 
 	bc := NewBroadcaster[struct{}](0)
