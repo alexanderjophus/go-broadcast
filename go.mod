@@ -1,3 +1,3 @@
-module github.com/trelore/go-broadcast
+module github.com/alexanderjophus/go-broadcast
 
-go 1.18
+go 1.19

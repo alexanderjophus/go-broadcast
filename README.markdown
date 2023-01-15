@@ -7,4 +7,4 @@ though.
 See [the documentation][doc] for usage and examples.
 
 
-[doc]: https://godoc.org/github.com/dustin/go-broadcast
+[doc]: https://pkg.go.dev/github.com/alexanderjophus/go-broadcast
